@@ -1,6 +1,7 @@
 package com.ai_assistant.backend.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import java.util.List;
@@ -25,11 +26,15 @@ public class GroqDirectService {
                 .build();
     }
 
+    // Caches the document analysis so identical files aren't re-processed
+    @Cacheable(value = "documentAnalysis", key = "#text.hashCode()")
     public String analyzeContract(String text) {
         String prompt = analyzePromptTemplate + "\n\nContract Text:\n" + text;
         return callGroq(prompt);
     }
 
+    // Caches questions asked against specific documents
+    @Cacheable(value = "documentQuestions", key = "(#documentText + #question).hashCode()")
     public String answerQuestion(String documentText, String question) {
         String prompt = questionPromptTemplate + "\n\nDocument:\n" + documentText + "\n\nUser Question: " + question + "\n\nAnswer the question directly based ONLY on the document provided.";
         return callGroq(prompt);
