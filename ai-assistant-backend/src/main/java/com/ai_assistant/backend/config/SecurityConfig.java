@@ -19,16 +19,8 @@ public class SecurityConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        // Completely bypass Spring Security filter chain for static assets and frontend files
         return (web) -> web.ignoring().requestMatchers(
-                "/",
-                "/index.html",
-                "/assets/**",
-                "/*.js",
-                "/*.css",
-                "/*.ico",
-                "/*.svg",
-                "/*.json"
+                "/", "/index.html", "/assets/**", "/*.js", "/*.css", "/*.ico", "/*.svg"
         );
     }
 
@@ -36,9 +28,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // Explicitly disable CSRF for POST requests
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/**").permitAll() // Explicitly permit API routes
                         .anyRequest().permitAll()
                 );
 
@@ -48,7 +41,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000", "https://*.railway.app"));
+        // Use OriginPatterns to allow wildcards without throwing errors
+        config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
