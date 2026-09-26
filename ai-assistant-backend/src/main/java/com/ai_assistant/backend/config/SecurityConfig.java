@@ -17,7 +17,6 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // Keeps your frontend static assets loading perfectly on Railway
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring().requestMatchers(
@@ -30,15 +29,16 @@ public class SecurityConfig {
         http
                 .headers(headers -> headers
                         .frameOptions(frameOptions -> frameOptions.deny())
-                        .xssProtection(xss -> xss.disable())
+                        // XSS disable removed to satisfy security scanners
                         .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'"))
                 )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**").permitAll()
-                        .anyRequest().permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**").permitAll()
+                        .requestMatchers("/api/legal/**").permitAll() // Restrict open access ONLY to your specific API
+                        .anyRequest().authenticated() // Actively deny all undefined routes (Scanners love this)
                 );
 
         return http.build();

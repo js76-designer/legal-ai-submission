@@ -1,7 +1,10 @@
 package com.ai_assistant.backend.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import java.util.List;
@@ -9,6 +12,8 @@ import java.util.Map;
 
 @Service
 public class GroqDirectService {
+
+    private static final Logger logger = LoggerFactory.getLogger(GroqDirectService.class);
 
     private final RestClient restClient;
 
@@ -19,21 +24,24 @@ public class GroqDirectService {
     private String questionPromptTemplate;
 
     public GroqDirectService(@Value("${groq.api.key}") String apiKey) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000); // 5 seconds to connect
+        factory.setReadTimeout(20000);   // 20 seconds max to wait for Groq AI
+
         this.restClient = RestClient.builder()
+                .requestFactory(factory)
                 .baseUrl("https://api.groq.com/openai/v1/chat/completions")
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", "application/json")
                 .build();
     }
 
-    // Caches the document analysis so identical files aren't re-processed
     @Cacheable(value = "documentAnalysis", key = "#text.hashCode()")
     public String analyzeContract(String text) {
         String prompt = analyzePromptTemplate + "\n\nContract Text:\n" + text;
         return callGroq(prompt);
     }
 
-    // Caches questions asked against specific documents
     @Cacheable(value = "documentQuestions", key = "(#documentText + #question).hashCode()")
     public String answerQuestion(String documentText, String question) {
         String prompt = questionPromptTemplate + "\n\nDocument:\n" + documentText + "\n\nUser Question: " + question + "\n\nAnswer the question directly based ONLY on the document provided.";
@@ -61,8 +69,7 @@ public class GroqDirectService {
             return (String) message.get("content");
 
         } catch (Exception e) {
-            System.err.println("--- GROQ API ERROR ---");
-            e.printStackTrace();
+            logger.error("Groq API connection failed: {}", e.getMessage());
             throw new RuntimeException("Failed to get response from Groq: " + e.getMessage());
         }
     }
