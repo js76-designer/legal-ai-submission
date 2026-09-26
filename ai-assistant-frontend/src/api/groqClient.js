@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const groqClient = axios.create({
-  baseURL: 'http://localhost:8080/api/legal',
+  baseURL: '/api/legal',
 });
 
 export const analyzeDocument = async (file) => {
